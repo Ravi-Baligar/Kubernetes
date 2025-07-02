@@ -1,0 +1,23 @@
+# Deployment: 
+
+- A Deployment manages a set of Pods to run an application workload, usually one that doesn't maintain state.
+- A Deployment provides declarative updates for Pods and ReplicaSets(Replicaset ensure that specified number of pod replica running at one time )
+- Deployment will create the ReplicaSets which is kubernetes controller which handling the auto healing feature of the pod
+- Deployment ---> ReplicaSets ----> pod
+- Deployment will create ReplicaSets and Replicasets will create the pod
+
+## Example:
+
+![](/home/ravi/Pictures/Screenshots/Screenshot from 2025-07-02 23-37-23.png)
+
+When delete the one pod manually or due some issue pod will created immediately. You can see in the below image 
+
+![](/home/ravi/Pictures/Screenshots/autoHealing.png)
+
+
+
+Example With replicasets as 3 (Meaning running 3 pods ). I deleted one pod manually and it will created automatically by feature called **Auto healing** --> Like Zero down disturbance 
+
+
+
+![](/home/ravi/Pictures/Screenshots/AutoHealing with 3 pods.png)
