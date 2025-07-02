@@ -1,0 +1,11 @@
+kubectl create -f pod.yaml  -->  THIS WILL CREATE THE POD [ -f meaning “Use the resource definition from this file.”]
+kubectl get pods ----> To see the pods
+kubectl get pods -o  wide --> Entire details of the pod
+minikube ssh  --> This will log into the node then you can use curl Ip address like [curl 10.244.0.3]
+kubectl describe podname  --> It will describes the pod [kubectl describe nginx]
+kubectl logs podname --> you can see the logs of pod to debug [kubectl logs nginx]
+
+
+
+
+
