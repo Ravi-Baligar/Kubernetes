@@ -5,6 +5,12 @@
 - Deployment will create the ReplicaSets which is kubernetes controller which handling the auto healing feature of the pod
 - Deployment ---> ReplicaSets ----> pod
 - Deployment will create ReplicaSets and Replicasets will create the pod
+- A Deployment is a high-level object in Kubernetes that:
+1.   Manages replica sets and pods	
+2.   Ensures the desired number of identical Pods are always running
+3. Supports rolling updates, rollbacks, and self-healing
+
+- 
 
 ## Example:
 
