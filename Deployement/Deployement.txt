@@ -39,3 +39,34 @@ Example With replicasets as 3 (Meaning running 3 pods ). I deleted one pod manua
 
 
 ![](/home/ravi/Pictures/Screenshots/AutoHealing with 3 pods.png)
+
+
+
+### Scaling Down a Deployment (Effectively "Stopping" it)
+
+
+
+This is the recommended way to temporarily halt a deployment without fully removing its configuration.
+
+**Command:**
+
+- kubectl scale deployment <deployment-name> --replicas=0 -n <namespace>
+- example : 
+
+ravi@ravi-VirtualBox:~/GIT/Deployement$ kubectl get pods --all-namespaces  
+NAMESPACE     NAME                                READY   STATUS    RESTARTS        AGE
+default       nginx-deployment-647677fc66-7q4w9   1/1     Running   0               32h
+default       nginx-deployment-647677fc66-tx4f4   1/1     Running   0               32h
+default       nginx-deployment-647677fc66-w6nmk   1/1     Running   0               32h
+kube-system   coredns-674b8bbfcf-zshx9            1/1     Running   0               7d11h
+kube-system   etcd-minikube                       1/1     Running   0               7d11h
+kube-system   kube-apiserver-minikube             1/1     Running   0               7d11h
+kube-system   kube-controller-manager-minikube    1/1     Running   2 (7d11h ago)   7d11h
+kube-system   kube-proxy-hndn6                    1/1     Running   0               7d11h
+kube-system   kube-scheduler-minikube             1/1     Running   0               7d11h
+kube-system   storage-provisioner                 1/1     Running   1 (7d11h ago)   7d11h
+
+**ravi@ravi-VirtualBox:~/GIT/Deployement$ kubectl scale deployment nginx-deployment --replicas=0 -n default**
+deployment.apps/nginx-deployment scaled
+
+
