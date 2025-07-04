@@ -1,0 +1,66 @@
+### Kuberenetes Interview Questions:
+
+
+
+1.  What is Difference between docker and Kubernetes?
+
+2.  What are main Components of Kubernetes Architecture ?
+
+3. What are main difference between docker Swarm and kubernetes ?
+
+4. What is difference between docker container and kubernetes pod?
+
+5. What is Namespace in Kubernetes? --> In kubernetes namespace is logical isolation of resources, network policies, rbac, and everything. For example there are 2 project using k8s cluster, one project can use one ns1 and other project can use ns2 without overlap and authentication problem.
+
+6.  What is role of kube-proxy?
+
+   - Kube proxy works by maintaining a set of network rules on each cluster, which are updated dynamically as service is added or removed. when the client send request to service, the request is intercepted by the kube-proxy on the node where it received. kube proxy then looks for the destination endpoint for the service and routes on the request accordingly
+   - kube-proxy is essential component of the kubernetes cluster as it ensures that service can communicate with each other
+
+7.  What are different types of services within kubernetes? --> Load balancer, cluster IP, Node port 
+
+8.  Diff between the load balancer and Node port type service?
+
+   - When service is created a Nodeport type, the kube-proxy updates the IPtables with node IP adress and port that choosen in the service configuration to access the pods
+   - where create a service as type load balancer, the cloud control manager creates the external load balancer IP using the underlying cloud provider  logic in the C-CM. User can access the service using the external 
+
+9. What is role of kubelet in kubernetes?
+
+   - Kubelet manages the containers that are scheduled to run on that node. It ensures the containers are running and healthy, and the resources they need are available.
+
+   - kubelet that communicates to the kubernetes API server to get the information about the containers  that should be running on the node, and start and stops containers as needed to maintain the desired state. It also monitors the containers to ensure that they are running correctly and restarts if required
+
+   - kubelet will communicate to kube API server if any of the pod going down then Kube-API will communicate to replicaset to spin of pod.
+
+   - **Kubelet's Role:** The Kubelet is an agent that runs on each node in the Kubernetes cluster. Its primary responsibility is to ensure that the containers within the pods are running and healthy. It continuously monitors the state of the pods assigned to its node.
+
+     **Detection of a Down Pod:** If a pod (or more precisely, a container within a pod) goes down or becomes unhealthy on a node, the Kubelet detects this state change.
+
+     **Kubelet Communicates to Kube-API Server (Status Update):** The Kubelet **doesn't directly communicate to the Kube-API server to "report a down pod for a new one to be spun up."** Instead, the Kubelet's ongoing function is to **update the status of the pods it manages** to the Kube-API server. When a pod goes down, the Kubelet updates the pod's status object in etcd (via the Kube-API server) to reflect its current state (e.g., `Failed`, `Error`, `Terminating`, or not reporting `Running` anymore).
+
+     **Controller Manager (Specifically, the ReplicaSet Controller) Monitors the Kube-API Server:** The Kube-API server is the central control plane component that exposes the Kubernetes API. Various controllers within the Kubernetes Controller Manager continuously watch the Kube-API server for changes in the desired state versus the actual state of resources.
+
+     **ReplicaSet Controller's Role:** The **ReplicaSet Controller** (which is part of the Controller Manager) is responsible for maintaining a stable set of replica pods running at any given time. It continuously compares the `replicas` field defined in the ReplicaSet object with the actual number of running pods associated with that ReplicaSet.
+
+     **Reconciliation by ReplicaSet Controller:**
+
+     - When the Kubelet updates the status of a pod as "down" (or unhealthy) to the Kube-API server, the ReplicaSet Controller observes this change.
+     - It sees that the actual number of healthy, running pods is now less than the desired number specified in the ReplicaSet.
+     - To reconcile this discrepancy, the ReplicaSet Controller creates a **new Pod object** with the same specifications as the original, but with a new unique name. This new Pod object is then sent to the Kube-API server.
+
+     **Scheduler's Role:** The Kube-API server receives the new Pod object created by the ReplicaSet Controller. The **Scheduler** then watches for newly created Pods that don't have a node assigned yet. It identifies the best node for the new pod based on various factors (resource availability, node affinity/anti-affinity, taints/tolerations, etc.). Once a node is chosen, the Scheduler updates the new Pod object in the Kube-API server, setting its `nodeName` field.
+
+     **Kubelet Pulls and Runs the New Pod:** The Kubelet on the selected node continuously watches the Kube-API server for pods that are assigned to it. When it sees the new Pod object with its `nodeName` matching its own, the Kubelet pulls the necessary container images and starts the new pod on that node.
+
+     | Event                       | Who handles it?                   | What happens?                             |
+     | --------------------------- | --------------------------------- | ----------------------------------------- |
+     | A container crashes         | **Kubelet**                       | Restarts the container (if policy allows) |
+     | A Pod crashes or is deleted | **ReplicaSet via API Server**     | New Pod is created                        |
+     | A Node goes down            | **Kube-Controller-Manager**<br /> | Pods are rescheduled on other Nodes       |
+
+     
+
+10. What is Day to day activities in kubernets?
+
+
+

@@ -1,0 +1,122 @@
+# Services(SVC) in Kubernetes:
+
+- Service in kubernetes can be created as below
+  - **Cluster IP mode:** Application or service is accessible to only within kubernetes cluster or who has access to cluster network
+  - **Node port mode :** Application or service is accessible within your network or your organization or who has access to your worker nodes.
+  - **Load balancer mode :** Application or service is accessible to external world. it will create public ip anybody can access 
+
+- Services can offer you following benefits:
+
+  - Load balancing: Splits the incoming traffic to pods
+  - service discovery: which has labels and selectors 
+  - Expose to external world
+
+- Deployment.yaml will create the deployment  and it will create Replica sets and then it will create pods. Deployment will allow enable auto healing feature. 
+
+  - On top the deployment service will be their and which will manages the LB, Service discovery, Expose to external world
+  - For Example you have type: load balancer and your getting traffic from external world, LB will distribute the load to following pods. 
+  - Example we pod like: 172.26.35.1, 172.26.35.2, 172.26.35.3
+  - Unfortunately due to some issue one of the pod goes down(172.26.35.2) Auto healing feature will spin of the one more pod with different ip address like 172.26.35.4 
+  - Now here LB will not look for IP address, Their is concept called selector and labels, Which will assigned to pod while creating, Now LB will send the traffic to label assigned this will be concept called service discovery
+
+- In **Kubernetes**, a **Service** is an abstraction that defines a logical set of Pods and a policy by which to access them. Since Pods are ephemeral (they can be created or destroyed dynamically), their IPs change over time. A Service provides a **stable network identity** and a way to consistently access these Pods.
+
+  ------
+
+  ### 🔹 Why Services are Needed
+
+  Without Services:
+
+  - You would need to track each Pod’s IP manually.
+  - Communication between Pods, or between external users and your application, becomes unreliable.
+
+  ------
+
+  ### 🔹 Types of Services in Kubernetes
+
+  | Type                    | Description                                                  |
+  | ----------------------- | ------------------------------------------------------------ |
+  | **ClusterIP** (default) | Exposes the Service on an internal IP in the cluster. Only accessible within the cluster. |
+  | **NodePort**            | Exposes the Service on a static port on each Node's IP. Accessible from outside the cluster via `<NodeIP>:<NodePort>`. |
+  | **LoadBalancer**        | Provisions an external load balancer (via cloud provider). Best for production apps needing external access. |
+  | **ExternalName**        | Maps the Service to a DNS name (like an external database), not a Pod. No real proxying happens. |
+
+  
+
+  ------
+
+  ### 🔹 Key Components of a Service
+
+  ```
+  yamlCopyEditapiVersion: v1
+  kind: Service
+  metadata:
+    name: my-service
+  spec:
+    selector:
+      app: MyApp
+    ports:
+      - protocol: TCP
+        port: 80          # Port exposed by the service
+        targetPort: 8080  # Port on the Pod
+    type: ClusterIP
+  ```
+
+  - `selector`: Matches Pods with labels (routes traffic to them).
+  - `port`: Port exposed to the client (inside or outside cluster).
+  - `targetPort`: Port on the Pod where the app listens.
+  - `type`: Service type (ClusterIP, NodePort, etc.).
+
+  ------
+
+  ### 🔹 How Services Work
+
+  1. You label your Pods:
+
+     ```
+     yamlCopyEditlabels:
+       app: MyApp
+     ```
+
+  2. You create a Service that uses this label as a selector.
+
+  3. Kubernetes automatically creates a **virtual IP (ClusterIP)** and **DNS name** for the Service.
+
+  4. Traffic sent to the Service is load-balanced across all matching Pods.
+
+  ------
+
+  ### 🔹 Real-World Use Cases
+
+  | Scenario                                   | Service Type |
+  | ------------------------------------------ | ------------ |
+  | Backend microservices communicating        | ClusterIP    |
+  | Exposing a web app for testing             | NodePort     |
+  | Exposing an app to the internet in AWS/GCP | LoadBalancer |
+  | Connecting to an external DB like RDS      | ExternalName |
+
+  
+
+  ------
+
+  ### 🔹 Bonus: DNS in Kubernetes
+
+  Kubernetes assigns a DNS name to each Service:
+
+  ```
+  pgsql
+  
+  
+  CopyEdit
+  <service-name>.<namespace>.svc.cluster.local
+  ```
+
+  So, for a service `my-service` in the `default` namespace:
+
+  ```
+  pgsql
+  
+  
+  CopyEdit
+  my-service.default.svc.cluster.local
+  ```
