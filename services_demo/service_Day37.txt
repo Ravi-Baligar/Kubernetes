@@ -1,0 +1,46 @@
+- **kubectl get all** --> to get all the services and deployment
+- **kubectl delete deploy {Name of deployment}** ----> To delete deployment and it will delete replica sets
+
+##### Day 37 Example:
+
+- docker build -t python-simple-app --> build the docker image 
+- kubernetes not able to pull loacally imge and pushed to docker hub
+- docker tag python-simple-app:latest ravi3423/python-simple-app:latest ---> tag the image before you push to docker hub.
+- docker push ravi3423/python-simple-app:latest
+- kubectl describe sample-python-app-6876498f74-8tbbg 
+- kubectl describe pod sample-python-app-6876498f74-8tbbg 
+- kubectl get pods -o wide
+- kubectl get pods
+- minikube ssh
+- crul -L http:// ip of pod /demo --> Access the app within the pod or cluster because kubernets by default it will not allow otside traffic we have configure`
+
+**Then Create the service.yaml file with type as nodeport like below**
+
+| apiVersion: v1<br/>kind: Service<br/>metadata:<br/>  name: python-django-app<br/>spec:<br/>  type: NodePort<br/>  selector:<br/>    app: sample-python-app<br/>    ports:<br/>    - port: 80<br/>      targetPort: 8000<br/>      nodePort: 30007 |
+| ------------------------------------------------------------ |
+
+​	 **app: sample-python-app** this should be same as the deployment selector
+
+- kubectl apply -f service.yaml ---> Apply the service.yaml
+- kubectl get svc --> below show like this and assigns port number
+  - 
+
+	NAME                TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+kubernetes          ClusterIP   10.96.0.1       <none>        443/TCP        8d
+
+python-django-app   NodePort    10.103.189.39   <none>        80:30007/TCP   37m
+
+
+
+- Now you can access the appliaction via the cluster ip like **crul -L http:// ip of pod /demo** or by the your minicube or node ip(It can be EC2) like below
+
+​	**minikube ssh** get ip then **curl -L http://192.168.58.2:30007/demo**
+
+- Now you can also access the in browser of the VM by http://192.168.58.2:30007/demo 
+
+- It can't be accessed through the outside world. If want expose to external or public need use the loadbalancer just chage above code 
+
+  **type: LoadBalancer**
+
+- **WE CAN SEE THE API FLOW AND LOAD BALANCE TO PODS USING THE KUBESHARK**
+
