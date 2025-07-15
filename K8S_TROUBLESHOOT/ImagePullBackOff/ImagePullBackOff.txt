@@ -1,0 +1,76 @@
+## ImagPullbackOff in K8S:
+
+###### `https://github.com/iam-veeramalla/kubernetes-troubleshooting-zero-to-hero/tree/main/01-ImagePullBackOff`
+
+
+
+- It happen because of below things:
+
+  - Image not exists or Invalid Image
+  - Private Image
+
+  
+
+  **Image not exists or Invalid Image**:
+
+  
+
+![](/home/ravi/Pictures/Screenshots/ImagePullbackoff.png)
+
+
+
+##### **Private Image**
+
+```
+ravi@ravi-VirtualBox:~/Documents/kubernetes/K8S_TROUBLESHOOT/ImagePullBackOff$ kubectl delete deployment nginx-deployment
+deployment.apps "nginx-deployment" deleted
+ravi@ravi-VirtualBox:~/Documents/kubernetes/K8S_TROUBLESHOOT/ImagePullBackOff$ kubectl apply -f deployment.yaml 
+deployment.apps/nginx-deployment created
+ravi@ravi-VirtualBox:~/Documents/kubernetes/K8S_TROUBLESHOOT/ImagePullBackOff$ kubectl get pods
+NAME                                READY   STATUS    RESTARTS   AGE
+nginx-deployment-6fb96c7887-flkx4   1/1     Running   0          27s
+nginx-deployment-6fb96c7887-g75p4   1/1     Running   0          27s
+nginx-deployment-6fb96c7887-vlqtc   1/1     Running   0          27s
+ravi@ravi-VirtualBox:~/Documents/kubernetes/K8S_TROUBLESHOOT/ImagePullBackOff$ kubectl create secret docker-registry demo --docker-server=https://index.docker.io/v1/ --docker-username=ravi3423 --docker-password=Pass --docker-email=ravibaligar108@gmail.com
+secret/demo created
+ravi@ravi-VirtualBox:~/Documents/kubernetes/K8S_TROUBLESHOOT/ImagePullBackOff$ kubectl get secrete 
+error: the server doesn't have a resource type "secrete"
+ravi@ravi-VirtualBox:~/Documents/kubernetes/K8S_TROUBLESHOOT/ImagePullBackOff$ kubectl get secrete
+error: the server doesn't have a resource type "secrete"
+ravi@ravi-VirtualBox:~/Documents/kubernetes/K8S_TROUBLESHOOT/ImagePullBackOff$ kubectl get secret
+NAME          TYPE                             DATA   AGE
+demo          kubernetes.io/dockerconfigjson   1      33s
+test-secret   Opaque                           1      4d11h
+ravi@ravi-VirtualBox:~/Documents/kubernetes/K8S_TROUBLESHOOT/ImagePullBackOff$ vim deployment.yaml 
+ravi@ravi-VirtualBox:~/Documents/kubernetes/K8S_TROUBLESHOOT/ImagePullBackOff$ kubectl apply -f deployment.yaml 
+```
+
+ **Deployment file below and and you have add secret as shown above and them mention the imagepullsecret into deployment as shown below**
+
+```
+piVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: ravi3423/nginx-imagepullbackoff:V1
+        ports:
+        - containerPort: 80
+      imagePullSecrets:
+      - name: demo
+
+```
+
