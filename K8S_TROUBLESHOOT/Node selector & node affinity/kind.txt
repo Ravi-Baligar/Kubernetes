@@ -1,0 +1,320 @@
+In Kubernetes, the scheduler is responsible for assigning pods to nodes in the cluster based on various criteria. Sometimes, you might encounter situations where pods are not being scheduled as expected. This can happen due to factors such as node constraints, pod requirements, or cluster configurations.
+
+### Node Selector
+
+Node Selector is a simple way to constrain pods to nodes with specific labels. It allows you to specify a set of key-value pairs that must match the node's labels for a pod to be scheduled on that node. Usage: Include a nodeSelector field in the pod's YAML definition to specify the required labels.
+
+```
+spec:
+    containers:
+    - name: my-app
+    image: my-image
+    nodeSelector:
+    disktype: ssd
+```
+
+
+
+### Node Affinity
+
+Node Affinity is a more expressive way to specify rules about the placement of pods relative to nodes' labels. It allows you to specify rules that apply only if certain conditions are met. Usage: Define nodeAffinity rules in the pod's YAML definition, specifying required and preferred node selectors.
+
+```
+spec:
+      affinity:
+       nodeAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 1
+          preference:
+           matchExpressions:
+           - key: foo
+             operator: In
+             values:
+             - bar
+      containers:
+      - name: nginx
+        image: nginx:1.14.2
+        ports:
+        - containerPort: 80
+```
+
+```
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/K8S_TROUBLESHOOT/Node selector & node affinity$ kubectl get pods -o wide
+NAME                               READY   STATUS    RESTARTS   AGE     IP           NODE                 NOMINATED NODE   READINESS GATES
+nginx-deployment-67678d867-48755   1/1     Running   0          2m14s   10.244.2.5   ravi-multi-worker3   <none>           <none>
+nginx-deployment-67678d867-gpzwn   1/1     Running   0          2m14s   10.244.1.2   ravi-multi-worker2   <none>           <none>
+nginx-deployment-67678d867-zvrxm   1/1     Running   0          2m14s   10.244.3.5   ravi-multi-worker    <none>           <none>
+
+```
+
+**I**
+**n The above we can see that it scheduled pods on different nodes. it try to check for key : foo and value: bar in any of the node if not available it will schedule in random nodes. If it matches it will schedule on that node** 
+
+
+
+##### requiredDuringSchedulingIgnoredDuringExecution:
+
+```
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/K8S_TROUBLESHOOT/Node selector & node affinity$ kubectl get nodes
+NAME                       STATUS   ROLES           AGE   VERSION
+ravi-multi-control-plane   Ready    control-plane   25h   v1.31.0
+ravi-multi-worker          Ready    <none>          25h   v1.31.0
+ravi-multi-worker2         Ready    <none>          25h   v1.31.0
+ravi-multi-worker3         Ready    <none>          25h   v1.31.0
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/K8S_TROUBLESHOOT/Node selector & node affinity$ kubectl describe node ravi-multi-worker | grep node-name
+                    node-name=arm
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/K8S_TROUBLESHOOT/Node selector & node affinity$ vim 04-node-affinity-required.yaml 
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/K8S_TROUBLESHOOT/Node selector & node affinity$ cat 04-node-affinity-required.yaml 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      affinity:
+       nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+         nodeSelectorTerms:
+         - matchExpressions:
+           - key: node-name
+             operator: In
+             values:
+             - arm
+       containers:
+         - name: nginx
+           image: nginx:1.14.2
+           ports:
+           - containerPort: 80 
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/K8S_TROUBLESHOOT/Node selector & node affinity$ kubectl apply -f 04-node-affinity-required.yaml 
+error: error parsing 04-node-affinity-required.yaml: error converting YAML to JSON: yaml: line 25: did not find expected key
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/K8S_TROUBLESHOOT/Node selector & node affinity$ vim 04-node-affinity-required.yaml 
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/K8S_TROUBLESHOOT/Node selector & node affinity$ kubectl apply -f 04-node-affinity-required.yaml 
+deployment.apps/nginx-deployment configured
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/K8S_TROUBLESHOOT/Node selector & node affinity$ kubectl get pods -o wide
+NAME                                READY   STATUS    RESTARTS   AGE   IP           NODE                NOMINATED NODE   READINESS GATES
+nginx-deployment-7fff9f98c5-qgqf9   1/1     Running   0          20s   10.244.3.6   ravi-multi-worker   <none>           <none>
+nginx-deployment-7fff9f98c5-qkzhz   1/1     Running   0          18s   10.244.3.7   ravi-multi-worker   <none>           <none>
+nginx-deployment-7fff9f98c5-xmmk7   1/1     Running   0          16s   10.244.3.8   ravi-multi-worker   <none>           <none>
+
+```
+
+
+
+### Taints
+
+Taints are applied to nodes to repel certain pods. They allow nodes to refuse pods unless the pods have a matching toleration. Usage: Use kubectl taint command to apply taints to nodes. Include tolerations field in the pod's YAML definition to tolerate specific taints.
+
+```
+kubectl taint nodes node1 disktype=ssd:NoSchedule
+```
+
+```
+kubectl taint nodes node1 key1=value1:NoSchedule
+```
+
+
+
+```
+spec:
+    containers:
+    - name: my-app
+    image: my-image
+    tolerations:
+    - key: disktype
+      operator: Equal
+      value: ssd
+      effect: NoSchedule
+```
+
+A **taint** on a node marks it as unsuitable for certain pods, unless the pods have a **matching toleration**.
+
+> 🧠 **Think of it like this**:
+>  A node says: "I don’t want any pods unless they can handle my taint."
+
+------
+
+### 🔹 Taint Format
+
+```
+
+kubectl taint nodes <node-name> key=value:effect
+```
+
+- `key`: Identifier of the taint.
+- `value`: Optional value.
+- `effect`: One of the following:
+  - `NoSchedule`: Pod **won’t** be scheduled unless it tolerates the taint.
+  - `PreferNoSchedule`: Scheduler **tries to avoid** placing the Pod on this node.
+  - `NoExecute`: New pods won’t schedule, and existing pods are **evicted** unless they tolerate it.
+
+------
+
+### 📌 Example
+
+```
+bash
+
+
+CopyEdit
+kubectl taint nodes node1 environment=dev:NoSchedule
+```
+
+➡️ This tells Kubernetes: **"Do not schedule any pod on node1 unless it tolerates the taint `environment=dev`."**
+
+------
+
+### 🔹 
+
+
+
+### Toleration in a Pod
+
+To allow a pod to **tolerate** that taint:
+
+```
+yamlCopyEditspec:
+  tolerations:
+  - key: "environment"
+    operator: "Equal"
+    value: "dev"
+    effect: "NoSchedule"
+```
+
+➡️ This pod is now allowed to run on `node1`.
+
+------
+
+### 🔄 Removing a Taint
+
+```
+bash
+
+
+CopyEdit
+kubectl taint nodes node1 environment=dev:NoSchedule-
+```
+
+The `-` at the end **removes** the taint.
+
+------
+
+### ✅ Use Cases
+
+- **Dedicated nodes** for system components or workloads.
+- Prevent workloads from running on nodes under **maintenance** or **stress**.
+- Create **soft isolation** (with `PreferNoSchedule`).
+
+### Tolerations
+
+Tolerations are applied to pods and allow them to schedule onto nodes with matching taints. They override the effect of taints.
+
+Usage: Include tolerations field in the pod's YAML definition to specify which taints the pod tolerates.
+
+```
+spec:
+  containers:
+  - name: my-app
+    image: my-image
+  tolerations:
+  - key: disktype
+    operator: Equal
+    value: ssd
+    effect: NoSchedule
+```
+
+In Kubernetes, a **toleration** is added to a **Pod** to **allow it to be scheduled** onto a node **with a matching taint**.
+
+------
+
+### 🔁 Relationship between Taints and Tolerations:
+
+| Node (Taint) | Pod (Toleration)   | Result                        |
+| ------------ | ------------------ | ----------------------------- |
+| Has taint    | No toleration      | Pod **will not** be scheduled |
+| Has taint    | Has toleration     | Pod **can** be scheduled      |
+| No taint     | Toleration present | Pod is scheduled normally     |
+
+
+
+------
+
+### 🧱 Toleration Format (in Pod Spec)
+
+```
+  tolerations:
+  - key: "environment"
+    operator: "Equal"
+    value: "dev"
+    effect: "NoSchedule"
+```
+
+- `key`: Must match the taint’s key
+- `value`: Must match the taint’s value
+- `operator`: `Equal` or `Exists`
+- `effect`: Must match the taint’s effect (`NoSchedule`, `PreferNoSchedule`, `NoExecute`)
+
+------
+
+### 🎯 Real-World Example
+
+#### 1. **Apply a taint on a node:**
+
+```
+
+kubectl taint nodes node1 team=backend:NoSchedule
+```
+
+#### 2. **Pod that tolerates the taint:**
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: toleration-pod
+spec:
+  tolerations:
+  - key: "team"
+    operator: "Equal"
+    value: "backend"
+    effect: "NoSchedule"
+  containers:
+  - name: nginx
+    image: nginx
+```
+
+➡️ This pod **can now run** on `node1` despite the taint.
+
+------
+
+### ⏱ Toleration with Timeout (for `NoExecute`)
+
+```
+- key: "key1"
+  operator: "Exists"
+  effect: "NoExecute"
+  tolerationSeconds: 60
+```
+
+- Pod will be evicted **after 60 seconds** if node has the taint.
+
+------
+
+### ✅ Use Cases
+
+- Allow only certain pods on **dedicated or special-purpose nodes**.
+- Temporarily let system daemons tolerate node conditions (e.g. memory pressure).
+- Gracefully evict pods under node **maintenance or failure**.
+
+------
+
+Would you like me to generate a working YAML file to try out taints and tolerations on your cluster?
