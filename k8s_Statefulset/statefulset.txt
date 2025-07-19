@@ -1,0 +1,442 @@
+# SatefulSet
+
+A **StatefulSet** in Kubernetes is a special type of controller used to **manage stateful applications**. It is designed for applications that:
+
+- Need **stable, unique network identities** (like DNS names)
+- Require **persistent storage** that stays across Pod restarts
+- Need **ordered startup, update, or shutdown**
+
+------
+
+### 🏗️ Why Use a StatefulSet?
+
+While a **Deployment** or **ReplicaSet** is good for stateless applications (like Nginx), a **StatefulSet** is ideal for **databases**, **queues**, or **distributed systems** like:
+
+- **MySQL / PostgreSQL**
+- **Kafka / RabbitMQ**
+- **Elasticsearch**
+- **Zookeeper / Cassandra**
+
+------
+
+### 🔁 How a StatefulSet Works (Key Features)
+
+| Feature                   | Description                                                  |
+| ------------------------- | ------------------------------------------------------------ |
+| 🆔 Stable Network Identity | Each Pod gets a **sticky hostname** like `pod-0`, `pod-1`, etc. via DNS |
+| 💾 Stable Storage          | Each Pod gets its own **PersistentVolume** (PVC), which stays even if the pod is deleted |
+| 🔢 Ordered Deployment      | Pods are created **sequentially**: `pod-0`, then `pod-1`, and so on |
+| 🔁 Ordered Termination     | Pods are deleted **in reverse order**                        |
+| 🧱 Pod Identity (Sticky)   | If `pod-0` dies, the new one is **still named** `pod-0` with same volume and DNS |
+| ⚙️ Rolling Updates         | Supports **safe rolling updates**, one pod at a time         |
+
+
+
+------
+
+### 🔍 Example StatefulSet YAML
+
+```
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+spec:
+  serviceName: "mysql"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:5.7
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+        - name: mysql-data
+          mountPath: /var/lib/mysql
+  volumeClaimTemplates:
+  - metadata:
+      name: mysql-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+```
+
+------
+
+### 🧠 Behind the Scenes
+
+Let’s say the name of the StatefulSet is `mysql`:
+
+1. **Pod Names (Stable IDs)**
+    You’ll get pods:
+
+   - `mysql-0`
+   - `mysql-1`
+   - `mysql-2`
+
+2. **DNS Hostnames (Headless Service)**
+    Requires a **Headless Service** like:
+
+   ```
+   spec:
+     clusterIP: None
+   ```
+
+   So each Pod gets a **stable DNS**:
+
+   ```
+   
+   mysql-0.mysql.default.svc.cluster.local
+   ```
+
+3. **Persistent Volumes**
+    Each Pod gets a PVC:
+
+   - `mysql-data-mysql-0`
+   - `mysql-data-mysql-1`
+
+4. **Pod Recreation**
+    If `mysql-1` dies, it is recreated with:
+
+   - Same name (`mysql-1`)
+   - Same PVC
+   - Same network identity
+
+------
+
+### 💡 StatefulSet vs Deployment
+
+| Feature             | Deployment     | StatefulSet                 |
+| ------------------- | -------------- | --------------------------- |
+| Pod Identity        | No             | Yes (`pod-0`, `pod-1`)      |
+| Storage Persistence | Shared         | One PVC per pod             |
+| Pod Start Order     | Random         | Ordered                     |
+| Use Case            | Stateless apps | Stateful apps (DBs, queues) |
+
+
+
+------
+
+### 🚧 Limitations & Notes
+
+- You **must** define a **headless service** (`clusterIP: None`) for network stability.
+- PVCs created are **not deleted automatically** when the StatefulSet is deleted.
+- Scaling down doesn’t delete volumes unless explicitly removed.
+- **Rolling updates** can be slow because updates happen **one pod at a time**.
+
+------
+
+### 🛠 When to Use StatefulSet?
+
+Use it when:
+
+- Each pod needs a **fixed identity** and **dedicated storage**.
+- You are deploying **databases**, **message brokers**, or **leader-based apps**.
+- You need **ordered scaling** and **graceful rolling updates**.
+
+
+
+A **StatefulSet** is a Kubernetes controller used to manage **stateful applications**, providing:
+
+- **Stable, unique pod identities**
+- **Persistent storage per pod**
+- **Ordered, controlled deployment and scaling**
+- **Safe rolling updates**
+
+It’s ideal for **databases**, **message brokers**, and **distributed systems**.
+
+------
+
+## ⚙️ How StatefulSet Works (Internals)
+
+### 1. 🔢 **Pod Naming and Identity**
+
+Each Pod gets a **fixed, unique name**:
+
+```
+php-template
+
+
+CopyEdit
+<statefulset-name>-<ordinal>
+```
+
+Example for a `mysql` StatefulSet with 3 replicas:
+
+```
+CopyEditmysql-0
+mysql-1
+mysql-2
+```
+
+This name **never changes**, even if the pod is restarted or rescheduled.
+
+### 2. 🌐 **Stable Network Identity (DNS)**
+
+StatefulSet uses a **Headless Service** (`clusterIP: None`) to give each pod a stable **DNS name**:
+
+```
+pgsql
+
+
+CopyEdit
+mysql-0.mysql.default.svc.cluster.local
+```
+
+Even if the pod is recreated, its DNS remains the same.
+
+### 3. 💾 **Persistent Storage Per Pod**
+
+Each pod in a StatefulSet can get its **own PersistentVolumeClaim (PVC)** using `volumeClaimTemplates`.
+
+```
+yamlCopyEditvolumeClaimTemplates:
+- metadata:
+    name: data
+  spec:
+    accessModes: [ "ReadWriteOnce" ]
+    resources:
+      requests:
+        storage: 10Gi
+```
+
+The controller automatically creates a PVC per pod:
+
+- `data-mysql-0`
+- `data-mysql-1`
+
+The **data is retained** even if the pod is deleted.
+
+------
+
+## 🧱 Lifecycle and Pod Management
+
+### 🔁 Creation Order
+
+- Pods are created **one at a time** in ordinal order:
+  - First `pod-0`, then `pod-1`, etc.
+- Ensures that dependent systems (like clusters) form properly.
+
+### 🔄 Deletion Order
+
+- Pods are deleted in **reverse order**:
+  - First `pod-2`, then `pod-1`, etc.
+
+### 🛠 Update Strategy
+
+By default, `updateStrategy` is:
+
+```
+yamlCopyEditupdateStrategy:
+  type: RollingUpdate
+```
+
+StatefulSet performs a **safe, ordered update**, one pod at a time, **waiting for readiness probes** before proceeding to the next pod.
+
+------
+
+## 📦 Example: Full StatefulSet with Headless Service
+
+```
+yamlCopyEditapiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+spec:
+  clusterIP: None  # Headless service
+  selector:
+    app: mysql
+  ports:
+  - port: 3306
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+spec:
+  serviceName: "mysql"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:5.7
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+        - name: mysql-storage
+          mountPath: /var/lib/mysql
+  volumeClaimTemplates:
+  - metadata:
+      name: mysql-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 5Gi
+```
+
+------
+
+## 🛡️ Advantages of StatefulSet
+
+| Feature              | Benefit                                         |
+| -------------------- | ----------------------------------------------- |
+| 🧭 Stable identity    | Good for clustered apps that require node names |
+| 💾 Persistent volumes | Each pod keeps its own data                     |
+| 🔄 Safe updates       | Ordered, controlled, respecting readiness       |
+| ⚡ Scalable           | Can scale replicas with awareness of state      |
+
+
+
+------
+
+## ❗ Gotchas and Limitations
+
+1. **Manual Volume Cleanup**
+    Deleting a StatefulSet does **not** delete PVCs.
+2. **Storage Class Awareness**
+    StorageClass must support **dynamic provisioning**, or volumes must be pre-created.
+3. **Scaling is Slow**
+    Due to ordered creation and readiness checks.
+4. **No Leader Election Built-in**
+    You need to manage clustering logic inside your app (e.g., Zookeeper, RabbitMQ).
+
+------
+
+## 🧪 Use Cases
+
+- 🛢 Databases (MySQL, PostgreSQL, MongoDB)
+- 🧠 Distributed systems (Cassandra, Kafka, Zookeeper)
+- 🗃 Cache systems with persistence (Redis cluster)
+- 🛂 Applications needing per-instance configs or data
+
+------
+
+## ✅ Best Practices
+
+- Always pair StatefulSet with a **Headless Service**.
+- Use **Readiness Probes** to control rollout behavior.
+- Use **StorageClass** for dynamic volume provisioning.
+- Avoid using StatefulSet for apps that don’t need it — **Deployments** are simpler and more efficient for stateless apps.
+
+```
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/k8s_Statefulset$ kubectl apply -f sample-statefulset.yaml 
+statefulset.apps/web created
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/k8s_Statefulset$ kubectl get pods
+NAME    READY   STATUS    RESTARTS   AGE
+web-0   0/1     Pending   0          9s
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/k8s_Statefulset$ kubectl get pods -o wide
+NAME    READY   STATUS    RESTARTS   AGE   IP       NODE     NOMINATED NODE   READINESS GATES
+web-0   0/1     Pending   0          20s   <none>   <none>   <none>           <none>
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/k8s_Statefulset$ kubectl describe pod web-0
+Name:             web-0
+Namespace:        default
+Priority:         0
+Service Account:  default
+Node:             <none>
+Labels:           app=nginx
+                  apps.kubernetes.io/pod-index=0
+                  controller-revision-hash=web-79dc58f667
+                  statefulset.kubernetes.io/pod-name=web-0
+Annotations:      <none>
+Status:           Pending
+IP:               
+IPs:              <none>
+Controlled By:    StatefulSet/web
+Containers:
+  nginx:
+    Image:        registry.k8s.io/nginx-slim:0.8
+    Port:         80/TCP
+    Host Port:    0/TCP
+    Environment:  <none>
+    Mounts:
+      /usr/share/nginx/html from www (rw)
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-jb5jc (ro)
+Conditions:
+  Type           Status
+  PodScheduled   False 
+Volumes:
+  www:
+    Type:       PersistentVolumeClaim (a reference to a PersistentVolumeClaim in the same namespace)
+    ClaimName:  www-web-0
+    ReadOnly:   false
+  kube-api-access-jb5jc:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    ConfigMapOptional:       <nil>
+    DownwardAPI:             true
+QoS Class:                   BestEffort
+Node-Selectors:              <none>
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+  Type     Reason            Age   From               Message
+  ----     ------            ----  ----               -------
+  Warning  FailedScheduling  45s   default-scheduler  0/4 nodes are available: pod has unbound immediate PersistentVolumeClaims. preemption: 0/4 nodes are available: 4 Preemption is not helpful for scheduling.
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/k8s_Statefulset$ kubectl get storageclass
+NAME                 PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
+standard (default)   rancher.io/local-path   Delete          WaitForFirstConsumer   false                  35h
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/k8s_Statefulset$ kubectl get pvccc
+error: the server doesn't have a resource type "pvccc"
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/k8s_Statefulset$ kubectl get pvc
+NAME        STATUS    VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+www-web-0   Pending                                      ebs            <unset>                 16m
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/k8s_Statefulset$ kubectl delete pvc www-web-0
+
+
+persistentvolumeclaim "www-web-0" deleted
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/k8s_Statefulset$ 
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/k8s_Statefulset$ 
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/k8s_Statefulset$ kubectl apply -f sample-statefulset.yaml s
+error: Unexpected args: [s]
+See 'kubectl apply -h' for help and examples
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/k8s_Statefulset$ kubectl apply -f sample-statefulset.yaml 
+statefulset.apps/web configured
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/k8s_Statefulset$ kubectl get pods
+NAME    READY   STATUS              RESTARTS   AGE
+web-0   0/1     ContainerCreating   0          5m12s
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/k8s_Statefulset$ kubectl get pods
+NAME    READY   STATUS              RESTARTS   AGE
+web-0   0/1     ContainerCreating   0          5m17s
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/k8s_Statefulset$ kubectl get pods -o
+error: flag needs an argument: 'o' in -o
+See 'kubectl get --help' for usage.
+ravi@ravi-VirtualBox:~/Documents/Kubernetes/k8s_Statefulset$ kubectl get pods -w
+NAME    READY   STATUS              RESTARTS   AGE
+web-0   0/1     ContainerCreating   0          5m39s
+web-0   1/1     Running             0          6m46s
+^Cravi@ravi-VirtualBox:~/Documents/Kubernetes/k8s_Statefulset$ kubectl get pods -w
+NAME    READY   STATUS    RESTARTS   AGE
+web-0   1/1     Running   0          7m
+web-1   0/1     Pending   0          3s
+web-1   0/1     Pending   0          21s
+web-1   0/1     ContainerCreating   0          22s
+web-1   1/1     Running             0          107s
+web-2   0/1     Pending             0          0s
+web-2   0/1     Pending             0          23s
+web-2   0/1     ContainerCreating   0          23s
+
+
+```
+
+
+
+
+
