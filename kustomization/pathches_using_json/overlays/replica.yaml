@@ -1,0 +1,4 @@
+- op: add
+  path: metadata/spec/replicas
+  value: 4
+
